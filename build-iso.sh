@@ -57,7 +57,7 @@ esac
 [[ -f "$BOOT_ISO" ]] || die "Boot ISO not found: $BOOT_ISO"
 [[ -n "$RELEASEVER" && "$RELEASEVER" != "%fedora" ]] || die "Could not determine Fedora release. Pass --releasever VERSION."
 
-for cmd in livemedia-creator ksflatten sudo; do
+for cmd in livemedia-creator ksflatten ksvalidator sudo; do
   command -v "$cmd" >/dev/null 2>&1 || die "Missing '$cmd'. Install lorax-lmc-novirt and pykickstart (plus Fedora kickstart packages)."
 done
 
@@ -79,6 +79,8 @@ info "Fedora release: $RELEASEVER"
 info "Boot media: $BOOT_ISO"
 info "Flattening Kickstart profile..."
 ksflatten --config="$KICKSTART" --output="$FLAT_KS"
+info "Validating flattened Kickstart..."
+ksvalidator "$FLAT_KS"
 
 info "Starting virtualized ISO composition..."
 info "This can take a while and requires substantial free disk space."
