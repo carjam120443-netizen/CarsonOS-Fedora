@@ -1,0 +1,101 @@
+name: Build CarsonOS-Fedora ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      desktop:
+        description: Desktop edition to build
+        required: true
+        type: choice
+        default: cinnamon
+        options:
+          - cinnamon
+          - kde
+          - xfce
+          - gnome
+          - hyprland
+  push:
+    branches:
+      - main
+    paths:
+      - "build-iso.sh"
+      - "kickstarts/**"
+      - ".github/workflows/build-iso.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carsonos-fedora-iso-${{ github.event.inputs.desktop || 'cinnamon' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # A Fedora self-hosted runner is required because ISO composition needs
+    # Fedora's livemedia-creator, libvirt/QEMU, and substantial local disk.
+    runs-on: [self-hosted, linux, x64, fedora]
+    timeout-minutes: 360
+    env:
+      DESKTOP: ${{ github.event.inputs.desktop || 'cinnamon' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo dnf install -y \
+            lorax-lmc-novirt \
+            pykickstart \
+            fedora-kickstarts \
+            spin-kickstarts \
+            qemu-kvm \
+            libvirt \
+            virt-install \
+            curl \
+            coreutils
+          sudo systemctl enable --now libvirtd
+          sudo virsh net-start default || true
+          sudo virsh net-autostart default || true
+
+      - name: Detect Fedora release and download matching boot ISO
+        id: media
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          releasever="$(rpm -E %fedora)"
+          listing="https://download.fedoraproject.org/pub/fedora/linux/releases/${releasever}/Everything/x86_64/iso/"
+          filename="$(curl -fsSL "$listing" | grep -oE 'Fedora-Everything-netinst-x86_64-[0-9.]+-[0-9]+\.[0-9]+\.iso' | sort -Vu | tail -n 1)"
+          if [[ -z "$filename" ]]; then
+            echo "::error::Could not find the Fedora Everything netinstall ISO for Fedora ${releasever}."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/fedora-media"
+          boot_iso="$RUNNER_TEMP/fedora-media/$filename"
+          curl --fail --location --retry 3 --output "$boot_iso" "$listing$filename"
+          echo "releasever=$releasever" >> "$GITHUB_OUTPUT"
+          echo "boot_iso=$boot_iso" >> "$GITHUB_OUTPUT"
+
+      - name: Build ISO
+        run: |
+          bash ./build-iso.sh \
+            --desktop "$DESKTOP" \
+            --releasever "${{ steps.media.outputs.releasever }}" \
+            --boot-iso "${{ steps.media.outputs.boot_iso }}" \
+            --result-dir "$GITHUB_WORKSPACE/out"
+
+      - name: Generate checksums
+        if: success()
+        run: |
+          cd out
+          find . -maxdepth 1 -type f -name '*.iso' -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS
+
+      - name: Upload ISO and build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarsonOS-Fedora-${{ env.DESKTOP }}-${{ github.run_number }}
+          path: out/
+          if-no-files-found: warn
+          retention-days: 14
