@@ -1,2 +1,115 @@
 # CarsonOS-Fedora
-CarsonOS Fedora version
+
+A Fedora-based Linux remix with Cinnamon as the flagship desktop and optional desktop editions.
+
+> **Project status:** Early development. The repository contains initial Kickstart profiles and ISO build tooling. No installable ISO has been published yet.
+
+## Editions
+
+| Edition | Role | Desktop |
+|---|---|---|
+| **Cinnamon** | Flagship | Cinnamon |
+| KDE Plasma | Optional edition | KDE Plasma |
+| XFCE | Optional edition | Xfce |
+| GNOME | Optional edition | GNOME |
+| Hyprland | Secondary / experimental | Hyprland (Wayland compositor) |
+
+The first target is the **Cinnamon installable live ISO**. The other profiles allow separate editions without installing every desktop environment into one oversized image.
+
+## Base system
+
+- Fedora Linux packages and RPM repositories
+- DNF5 package management
+- systemd
+- Anaconda installer through Fedora's live-image workflow
+- Fedora boot-media tooling
+- SELinux enforcing (Fedora defaults)
+- NetworkManager
+
+CarsonOS-Fedora is a traditional mutable Fedora installation. It is **not** an Atomic/immutable edition.
+
+## Build an ISO
+
+Build on a Fedora machine or Fedora VM matching the target release. A disposable build VM is recommended.
+
+### 1. Install build dependencies
+
+```bash
+sudo dnf install lorax-lmc-novirt pykickstart fedora-kickstarts spin-kickstarts \
+  qemu-kvm libvirt virt-install
+```
+
+Make sure virtualization is available and your account can use libvirt.
+
+### 2. Obtain Fedora boot media
+
+Download the Fedora **Everything netinstall/boot ISO** for the same release and architecture you intend to build. The ISO is used by Anaconda inside the image-composition VM; it is not the finished CarsonOS image.
+
+### 3. Build the Cinnamon edition
+
+```bash
+bash ./build-iso.sh --desktop cinnamon --boot-iso /path/to/Fedora-netinst.iso
+```
+
+The script flattens the selected Kickstart profile and invokes `livemedia-creator` using its virtualized workflow. The resulting ISO and build logs are written to `out/`.
+
+### Other desktop profiles
+
+```bash
+bash ./build-iso.sh --desktop kde --boot-iso /path/to/Fedora-netinst.iso
+bash ./build-iso.sh --desktop xfce --boot-iso /path/to/Fedora-netinst.iso
+bash ./build-iso.sh --desktop gnome --boot-iso /path/to/Fedora-netinst.iso
+bash ./build-iso.sh --desktop hyprland --boot-iso /path/to/Fedora-netinst.iso
+```
+
+The Hyprland profile is experimental. Hyprland is a Wayland compositor rather than a complete desktop environment, so its session, greeter, and hardware configuration need extra testing.
+
+### Options
+
+```
+--desktop NAME       cinnamon (default), kde, xfce, gnome, hyprland
+--boot-iso PATH      Fedora boot/netinstall ISO for the target release
+--releasever VERSION Fedora release; defaults to the build host's release
+--result-dir PATH    Output directory; defaults to ./out
+--help               Show help
+```
+
+The build script does not partition or install anything on the build host. It uses the virtualized `livemedia-creator` workflow rather than Anaconda's `--no-virt` mode.
+
+## Repository layout
+
+```
+.
+├── build-iso.sh
+├── kickstarts/
+│   ├── cinnamon.ks
+│   ├── gnome.ks
+│   ├── hyprland.ks
+│   ├── kde.ks
+│   └── xfce.ks
+├── docs/
+│   └── BUILDING.md
+├── LICENSE
+└── README.md
+```
+
+## Roadmap
+
+- [x] Establish Fedora-based project structure
+- [x] Add desktop-specific Kickstart profiles
+- [x] Add a virtualized ISO build script
+- [ ] Validate Kickstart profiles against the selected Fedora release
+- [ ] Build and boot-test the Cinnamon ISO in VirtualBox / QEMU
+- [ ] Verify Anaconda installation to a clean virtual disk
+- [ ] Add CarsonOS branding and artwork
+- [ ] Add a release workflow and publish checksums
+- [ ] Test KDE, XFCE, GNOME, and Hyprland profiles
+- [ ] Create a signed custom package repository if CarsonOS packages are ready
+
+## Fedora relationship and trademarks
+
+CarsonOS-Fedora is an independent remix and is not produced, endorsed, or supported by the Fedora Project. Fedora and the Fedora logo are trademarks of Red Hat, Inc. This project must not imply official Fedora affiliation. Review Fedora's trademark guidelines before distributing branded images.
+
+## License
+
+Project scripts and configuration are licensed under the MIT License. See [LICENSE](LICENSE).
