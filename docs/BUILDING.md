@@ -13,6 +13,21 @@
 
 The build script invokes `livemedia-creator` with its normal virtualized workflow. It intentionally does not use `--no-virt`, which runs Anaconda directly on the host and has a larger host-risk surface.
 
+## GitHub Actions runner
+
+The automated workflow uses a **self-hosted Fedora runner**. This is intentional: ISO composition needs Fedora's build tools, libvirt/QEMU, and more disk space than a typical hosted CI runner provides.
+
+1. On a dedicated Fedora machine or Fedora VM, install and configure a GitHub Actions self-hosted runner for this repository. Follow GitHub's official runner setup instructions.
+2. Add these exact runner labels: `self-hosted`, `linux`, `x64`, and `fedora`.
+3. Ensure the runner account can run `sudo dnf` without an interactive password. The workflow installs its own build dependencies.
+4. Ensure libvirt is available and the runner account can manage it. The workflow enables `libvirtd` and starts the default network.
+5. Provide substantial free disk space for the downloaded boot ISO, temporary image composition, and final ISO. A dedicated build VM with at least 60 GB free is a sensible starting point; larger profiles may need more.
+6. Keep the runner machine powered on and connected for scheduled and push-triggered builds.
+
+Once the runner is online, the workflow runs on relevant pushes to `main`, every Monday, or when manually started from the repository's **Actions** tab. Manual runs allow the desktop profile to be selected. Successful builds upload the ISO and SHA-256 checksum as a 14-day workflow artifact.
+
+Do not register a self-hosted runner on a machine containing sensitive workloads unless you understand the security implications of running repository workflows on it. Use a dedicated VM where possible.
+
 ## Kickstart profiles
 
 Each profile includes Fedora's live base Kickstart and adds one desktop environment. Profiles are separate so an image contains one intended desktop rather than all desktop environments at once.
