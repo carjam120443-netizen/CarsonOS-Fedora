@@ -28,7 +28,7 @@ The first target is the **Cinnamon installable live ISO**. The other profiles al
 
 CarsonOS-Fedora is a traditional mutable Fedora installation. It is **not** an Atomic/immutable edition.
 
-## Build an ISO
+## Build an ISO locally
 
 Build on a Fedora machine or Fedora VM matching the target release. A disposable build VM is recommended.
 
@@ -36,7 +36,7 @@ Build on a Fedora machine or Fedora VM matching the target release. A disposable
 
 ```bash
 sudo dnf install lorax-lmc-novirt pykickstart fedora-kickstarts spin-kickstarts \
-  qemu-kvm libvirt virt-install
+  qemu-kvm libvirt virt-install curl
 ```
 
 Make sure virtualization is available and your account can use libvirt.
@@ -76,10 +76,27 @@ The Hyprland profile is experimental. Hyprland is a Wayland compositor rather th
 
 The build script does not partition or install anything on the build host. It uses the virtualized `livemedia-creator` workflow rather than Anaconda's `--no-virt` mode.
 
+## Automatic GitHub Actions builds
+
+The repository includes [a GitHub Actions workflow](.github/workflows/build-iso.yml) that:
+
+- Builds Cinnamon automatically when relevant files are pushed to `main`
+- Runs a scheduled Cinnamon build every Monday
+- Lets you manually choose Cinnamon, KDE, XFCE, GNOME, or experimental Hyprland
+- Detects the Fedora release on the runner and downloads its matching Everything netinstall ISO
+- Uploads the ISO and build logs as a workflow artifact, with a SHA-256 checksum
+
+**Important:** ISO composition needs a Fedora machine with working libvirt/QEMU and substantial free disk space. GitHub-hosted runners are not used for this job. Add a dedicated Fedora self-hosted runner to this repository with the labels `self-hosted`, `linux`, `x64`, and `fedora`. The runner account must have passwordless sudo and permission to use libvirt. See [the runner setup guide](docs/BUILDING.md#github-actions-runner).
+
+To start a build manually, open the repository's **Actions** tab, select **Build CarsonOS-Fedora ISO**, choose an edition, and select **Run workflow**. Download the resulting ISO from the completed run's **Artifacts** section.
+
 ## Repository layout
 
 ```
 .
+├── .github/
+│   └── workflows/
+│       └── build-iso.yml
 ├── build-iso.sh
 ├── kickstarts/
 │   ├── cinnamon.ks
@@ -98,11 +115,11 @@ The build script does not partition or install anything on the build host. It us
 - [x] Establish Fedora-based project structure
 - [x] Add desktop-specific Kickstart profiles
 - [x] Add a virtualized ISO build script
+- [x] Add an automated GitHub Actions build workflow
 - [ ] Validate Kickstart profiles against the selected Fedora release
 - [ ] Build and boot-test the Cinnamon ISO in VirtualBox / QEMU
 - [ ] Verify Anaconda installation to a clean virtual disk
 - [ ] Add CarsonOS branding and artwork
-- [ ] Add a release workflow and publish checksums
 - [ ] Test KDE, XFCE, GNOME, and Hyprland profiles
 - [ ] Create a signed custom package repository if CarsonOS packages are ready
 
